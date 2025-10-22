@@ -1,0 +1,45 @@
+# Core Dependencies
+langchain
+langchain-core
+langchain-google-genai
+langgraph
+langgraph-cli
+langsmith
+
+# LLM Providers
+langchain-openai
+
+# Vector Database
+qdrant-client
+sentence-transformers
+
+# Web Scraping
+playwright
+beautifulsoup4
+feedparser
+lxml
+
+# API Server
+fastapi
+uvicorn[standard]
+websockets
+python-multipart
+
+# Frontend
+streamlit
+
+# Utilities
+pydantic
+pydantic-settings
+python-dotenv
+httpx
+
+# Async Support
+asyncio
+aiofiles
+
+# Development
+pytest
+pytest-asyncio
+black
+ruff
