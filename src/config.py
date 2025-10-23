@@ -38,6 +38,9 @@ class Settings(BaseSettings):
     default_response_model: str = Field(default="gemini", alias="DEFAULT_RESPONSE_MODEL")
     message_summary_threshold: int = Field(default=10, alias="MESSAGE_SUMMARY_THRESHOLD")
     max_blog_titles: int = Field(default=5, alias="MAX_BLOG_TITLES")
+
+    # Memory Settings
+    sqlite_file_path: str = Field(default="langgraph.sqlite", alias="SQLITE_FILE_PATH")
     
     # Vector Store Settings
     blog_collection_name: str = "blog_content"

@@ -3,13 +3,19 @@
 QUERY_CLASSIFIER_PROMPT = """
 You are a query classifier for an RSS blog Q&A system.
 
-Analyze the user's query and classify it into one of two types:
+Analyze the user's query and classify it into one of three types:
 
 1. **discovery**: User is asking about new blogs from a company
     - Examples: "Is there a new blog by Google?", "What's the latest from OpenAI?", "Show me recent Amazon blogs"
 
 2. **direct**: User wants to learn about a specific topic from a blog
     - Examples: "I want to learn about LLM hallucination by OpenAI", "Explain Google's new AI model", "Tell me about AWS serverless"
+
+3. **blog_selection**: User is selecting a blog from a previously presented list
+    - Examples: "Tell me more about 'Introducing Claude'", "I choose number 2", "Explain the second one"
+
+4. **general**: User is asking a general question, greeting, or something not related to company blogs
+    - Examples: "Hi there!", "How are you?", "What is the capital of France?", "Who are you?"
 
 Also extract:
 - company_name: The company mentioned (e.g., "Google", "OpenAI", "Amazon")
@@ -22,7 +28,7 @@ Response ONLY with valid JSON that conforms to the following schema:
     "properties": {{
         "query_type": {{
             "type": "string",
-            "enum": ["discovery", "direct"],
+            "enum": ["discovery", "direct", "general", "blog_selection"],
             "description": "Classification of the user's query"
         }},
         "company_name": {{
@@ -32,6 +38,14 @@ Response ONLY with valid JSON that conforms to the following schema:
         "topic": {{
             "type": ["string", "null"],
             "description": "The specific topic of interest for direct queries, or null for discovery queries"
+        }},
+        "selected_blog_index": {{
+            "type": ["integer", "null"],
+            "description": "The 1-based index of the selected blog from a list, or null if not a blog_selection query"
+        }},
+        "selected_blog_title": {{
+            "type": ["string", "null"],
+            "description": "The title of the selected blog, or null if not a blog_selection query"
         }},
         "reasoning": {{
             "type": "string",
@@ -100,6 +114,21 @@ Answer:
 """
 
 
+GENERAL_RESPONSE_PROMPT = """
+You are a helpful and friendly AI assistant.
+
+User Question: {question}
+
+Instructions:
+1. Respond directly to the user's question or greeting.
+2. Do not mention "context" or "blog content" unless explicitly asked.
+3. Be concise and helpful.
+4. If the question is a greeting, respond appropriately.
+
+Answer:
+"""
+
+
 MEMORY_SUMMARIZATION_PROMPT = """
 Summarize this conversation concisely for future reference.
 
@@ -113,4 +142,12 @@ Create a brief summary (2-3 sentences) capturing:
 - Companies and blog mentioned
 
 Summary:
+"""
+
+
+LLM_BLOG_SELECTION_PROMPT = """
+You are a helpful assistant helping a user find the best blog post.\n
+User query: {user_query}\n\n
+Here are some candidate blog posts:\n{entries_text}\n\n
+Please respond with the number (1-{n}) of the most relevant blog for this query.
 """

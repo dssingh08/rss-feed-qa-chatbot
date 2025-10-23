@@ -5,15 +5,28 @@ import sys
 import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-import streamlit as st
 import asyncio
+import platform # New import
+import logging # New import
+# Set the appropriate asyncio event loop policy for Windows at the very top
+if platform.system() == "Windows":
+    asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+
+# Set the root logger level to CRITICAL to suppress all but critical messages
+logging.getLogger().setLevel(logging.CRITICAL)
+
+import streamlit as st
 import json
 from websockets import connect
 from src.config import settings
 from src.utils.logger import setup_logger
-
+from src.agent import graph # Original import
 
 logger = setup_logger(__name__)
+
+# Set Streamlit's logging level to WARNING to suppress informational messages
+logging.getLogger("streamlit").setLevel(logging.WARNING)
+logging.getLogger("httpx").setLevel(logging.WARNING) # Suppress httpx logs as well
 
 
 st.set_page_config(
@@ -70,6 +83,26 @@ if "user_id" not in st.session_state:
     import uuid
     st.session_state.user_id = str(uuid.uuid4())
 
+if "agent_state" not in st.session_state:
+    st.session_state.agent_state = {
+        "messages": [],
+        "user_id": st.session_state.user_id,
+        "summary": "",
+        "query_type": "unknown",
+        "company_name": None,
+        "topic": None,
+        "blog_titles": None,
+        "selected_blog_url": None,
+        "selected_blog_title": None,
+        "vector_store_ids": [],
+        "should_scrape": False,
+        "scraper_reason": None,
+        "response_model": "gemini", # Default model
+        "step_count": 0
+    }
+
+
+
 # Display chat history
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
@@ -90,30 +123,17 @@ if prompt := st.chat_input("Ask about company blogs..."):
         
         # Call agent (simplified - in production use WebSocket)
         try:
-            from src.agent import graph
             from langchain_core.messages import HumanMessage
             
             config = {"configurable": {"thread_id": st.session_state.user_id}}
             
-            initial_state = {
-                "messages": [HumanMessage(content=prompt)],
-                "user_id": st.session_state.user_id,
-                "summary": "",
-                "query_type": "unknown",
-                "company_name": None,
-                "topic": None,
-                "blog_titles": None,
-                "selected_blog_url": None,
-                "selected_blog_title": None,
-                "vector_store_ids": [],
-                "should_scrape": False,
-                "scraper_reason": None,
-                "response_model": model_choice,
-                "step_count": 0
-            }
-            
-            final_state = asyncio.run(graph.ainvoke(initial_state, config=config))
-            
+            # Update the agent_state with the new user message and model choice
+            st.session_state.agent_state["messages"].append(HumanMessage(content=prompt))
+            st.session_state.agent_state["response_model"] = model_choice
+
+            final_state = asyncio.run(graph.ainvoke(st.session_state.agent_state, config=config))
+            st.session_state.agent_state = final_state # Store the final state back to session
+
             # Get last AI message
             ai_messages = [msg for msg in final_state["messages"] if msg.type == "ai"]
             if ai_messages:

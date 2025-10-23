@@ -47,7 +47,7 @@ def get_response_model(model_choice: str = "gemini", temperature: float = 0.7):
         )
     elif model_choice == "gpt4o":
         return ChatOpenRouter(
-            model_name="openai/gpt-40",
+            model_name="openai/gpt-4o-mini",
             temperature=temperature
         )
     elif model_choice == "llama":

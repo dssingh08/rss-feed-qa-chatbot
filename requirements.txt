@@ -14,7 +14,7 @@ qdrant-client
 sentence-transformers
 
 # Web Scraping
-playwright
+playwright==1.39.0
 beautifulsoup4
 feedparser
 lxml

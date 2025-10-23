@@ -105,8 +105,7 @@ COMPANY_RSS_FEEDS = {
 
 def get_company_feed(company_name: str) -> Optional[str]:
     """ Get RSS feed URL for a company """
-    company_lower = company_name.lower()
-    feed_url = COMPANY_RSS_FEEDS.get(company_name)
+    feed_url = COMPANY_RSS_FEEDS.get(company_name.lower())
 
     if feed_url:
         logger.info(f"Found RSS feed for {company_name}: {feed_url}")

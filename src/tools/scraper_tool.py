@@ -85,10 +85,11 @@ async def scrape_blog(url: str) -> Optional[str]:
         return await scraper.scrape_blog_content(url)
 
 
-def scrape_blog_sync(url: str) -> Optional[str]:
+async def scrape_blog_sync(url: str) -> Optional[str]:
     """ Synchronous wrapper for scraping """
     try: 
-        return asyncio.run(scrape_blog(url))
+        content = await scrape_blog(url)
+        return content
     except Exception as e:
         logger.error(f"Error in sync scrape: {str(e)}")
         return None

@@ -14,10 +14,11 @@ class AgentState(TypedDict):
 
     user_id: str
 
-    query_type: Literal["discovery", "direct", "unknown"]
+    query_type: Literal["discovery", "direct", "blog_selection", "unknown"]
 
     company_name: Optional[str]
     topic: Optional[str]
+    selected_blog_index: Optional[int] # Add this
 
     blog_titles: Optional[list[dict]]
 

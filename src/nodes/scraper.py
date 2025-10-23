@@ -2,7 +2,7 @@
 
 from langchain_core.messages import AIMessage
 from src.state import AgentState
-from src.tools.scraper_tool import scrape_blog_sync
+from src.tools.scraper_tool import scrape_blog
 from src.tools.vector_operations import vector_store
 from src.utils.logger import setup_logger
 
@@ -19,6 +19,8 @@ async def scraper_node(state: AgentState) -> AgentState:
     blog_url = state.get("selected_blog_url")
     blog_title = state.get('selected_blog_title')
     company_name = state.get("company_name")
+    if not blog_url:    
+        logger.info("no blog url found")
     reason = state.get("scraper_reason", "Requested by agent")
 
     logger.info(f"Scraping blog: {blog_url}")
@@ -26,15 +28,8 @@ async def scraper_node(state: AgentState) -> AgentState:
 
     new_state = state.copy()
 
-    if vector_store.check_blog_exists(blog_url):
-        logger.info(f"Blog content already exists in vector store: {blog_url}")
-        new_state.update({
-            "should_scrape": False,
-            "step_count": state["step_count"] + 1
-        })
-        return new_state
-
-    content = scrape_blog_sync(blog_url)
+    # Always scrape the content to ensure it's fresh
+    content = await scrape_blog(blog_url)
 
     if not content:
         logger.error(f"Failed to scrape content from {blog_url}")
