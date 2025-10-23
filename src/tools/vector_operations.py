@@ -21,7 +21,6 @@ class VectorStore:
         logger.info(f"Connecting to Qdrant at {settings.qdrant_url}")
         self.client = QdrantClient(url=settings.qdrant_url, api_key=settings.qdrant_api_key)
         self.encoder = SentenceTransformer(settings.embedding_model)
-        # self.client.delete_collection(settings.blog_collection_name)
         self._ensure_collections()
     
     def _ensure_collections(self):
@@ -30,7 +29,6 @@ class VectorStore:
         for collection_name in collections:
             if not self.client.collection_exists(collection_name):
                 logger.info(f"Creating collection: {collection_name}")
-                # Create collection WITHOUT payload_schema (not supported by your cloud instance)
                 self.client.create_collection(
                     collection_name=collection_name,
                     vectors_config=VectorParams(
@@ -39,11 +37,9 @@ class VectorStore:
                     )
                 )
                 
-                # After creating blog collection, create payload indexes manually
                 if collection_name == settings.blog_collection_name:
                     logger.info("Creating payload indexes for blog_content collection")
                     try:
-                        # Create index for company_name
                         self.client.create_payload_index(
                             collection_name=collection_name,
                             field_name="company_name",
@@ -51,7 +47,6 @@ class VectorStore:
                         )
                         logger.info("Created index for company_name")
                         
-                        # Create index for blog_url
                         self.client.create_payload_index(
                             collection_name=collection_name,
                             field_name="blog_url",
@@ -84,7 +79,6 @@ class VectorStore:
         """
         logger.info(f"Adding blog content to vector store: {blog_title}")
 
-        # Fixed chunking logic (was wrong: i+i+chunk_size)
         chunks = [content[i:i+chunk_size] for i in range(0, len(content), chunk_size)]
         logger.debug(f"Split content into {len(chunks)} chunks")
 

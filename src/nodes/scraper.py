@@ -28,7 +28,6 @@ async def scraper_node(state: AgentState) -> AgentState:
 
     new_state = state.copy()
 
-    # Always scrape the content to ensure it's fresh
     content = await scrape_blog(blog_url)
 
     if not content:

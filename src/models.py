@@ -52,7 +52,7 @@ def get_response_model(model_choice: str = "gemini", temperature: float = 0.7):
         )
     elif model_choice == "llama":
         return ChatOpenRouter(
-            model_name="meta-llama/llama-3.1-8b-instruct:free",
+            model_name="meta-llama/llama-4-maverick:free",
             temperature=temperature
         )
     else:

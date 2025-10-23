@@ -73,7 +73,6 @@ class RSSParser:
                 title = entry.get("title", "")
                 description = entry.get("summary", entry.get("description", ""))
                 
-                # normalize to strings to avoid 'in' operator type errors
                 title_text = str(title) if title is not None else ""
                 description_text = str(description) if description is not None else ""
                 

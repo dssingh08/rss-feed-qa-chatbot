@@ -27,7 +27,7 @@ async def rss_selection_processor_node(state: AgentState) -> AgentState:
 
     query_type = state.get("query_type")
     selected_blog_index = state.get("selected_blog_index")
-    selected_blog_title_from_classifier = state.get("selected_blog_title") # From classifier
+    selected_blog_title_from_classifier = state.get("selected_blog_title")
 
     selected_blog = None
 
@@ -35,7 +35,6 @@ async def rss_selection_processor_node(state: AgentState) -> AgentState:
         if selected_blog_index is not None and 1 <= selected_blog_index <= len(blog_titles):
             selected_blog = blog_titles[selected_blog_index - 1]
         elif selected_blog_title_from_classifier:
-            # Try to find by title if index is not provided or invalid
             for blog in blog_titles:
                 if selected_blog_title_from_classifier.lower() in blog['title'].lower():
                     selected_blog = blog
@@ -45,8 +44,9 @@ async def rss_selection_processor_node(state: AgentState) -> AgentState:
         logger.info(f"User selected blog: {selected_blog['title']}")
         new_state.update({
             "selected_blog_url": selected_blog["link"],
-            "selected_blog_title": selected_blog["title"], # Ensure this is the actual blog title
+            "selected_blog_title": selected_blog["title"],
             "should_scrape": True,
+            "query_type": "direct",
             "scraper_reason": f"User selected blog: {selected_blog['title']}",
             "messages": state["messages"] + [AIMessage(content=f"You selected: {selected_blog['title']}. Now scraping...")]
         })

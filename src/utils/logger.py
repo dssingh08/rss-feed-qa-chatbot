@@ -25,7 +25,6 @@ def setup_logger(name: str) -> logging.Logger:
     )
     console_handler.setFormatter(console_format)
 
-    # File handler
     file_handler = logging.FileHandler(log_dir / "app.log")
     file_handler.setLevel(logging.INFO)
     file_format = logging.Formatter(

@@ -11,7 +11,9 @@ Analyze the user's query and classify it into one of three types:
 2. **direct**: User wants to learn about a specific topic from a blog
     - Examples: "I want to learn about LLM hallucination by OpenAI", "Explain Google's new AI model", "Tell me about AWS serverless"
 
-3. **blog_selection**: User is selecting a blog from a previously presented list
+3. **blog_selection**: User is selecting a blog from a previously presented list.
+    - If the user selects by number, extract the index into `selected_blog_index`.
+    - If the user selects by title (or partial title), extract the title into `selected_blog_title`.
     - Examples: "Tell me more about 'Introducing Claude'", "I choose number 2", "Explain the second one"
 
 4. **general**: User is asking a general question, greeting, or something not related to company blogs

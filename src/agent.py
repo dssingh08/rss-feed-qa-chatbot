@@ -11,7 +11,7 @@ from src.nodes.rss_fetcher import fetch_rss_titles_node
 from src.nodes.blog_search import search_blog_node
 from src.nodes.scraper import scraper_node
 from src.nodes.response_generator import generate_response_node
-from src.nodes.rss_selection_processor import rss_selection_processor_node # New import
+from src.nodes.rss_selection_processor import rss_selection_processor_node
 from src.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -60,7 +60,7 @@ def route_after_rss_selection(state: AgentState) -> Literal["scraper", "generate
     if should_scrape and selected_blog_url:
         return "scraper"
     else:
-        return "generate_response" # If no blog was selected or scraping is not needed, go to generate response
+        return "generate_response"
 
 
 def route_after_generate_response(state: AgentState) -> Literal["rss_selection_processor", END]:
@@ -80,7 +80,7 @@ def create_graph():
 
     workflow.add_node("classify_query", classify_query_node)
     workflow.add_node("fetch_rss", fetch_rss_titles_node)
-    workflow.add_node("rss_selection_processor", rss_selection_processor_node) # New node
+    workflow.add_node("rss_selection_processor", rss_selection_processor_node)
     workflow.add_node("search_blog", search_blog_node)
     workflow.add_node("scraper", scraper_node)
     workflow.add_node("generate_response", generate_response_node)
@@ -107,7 +107,6 @@ def create_graph():
         }
     )
 
-    # New conditional edge after fetch_rss to go to the response generator
     workflow.add_conditional_edges(
         "fetch_rss",
         route_after_rss_fetch,
@@ -117,20 +116,18 @@ def create_graph():
         }
     )
 
-    # Conditional edge after the new selection processor node
     workflow.add_conditional_edges(
         "rss_selection_processor",
         route_after_rss_selection,
         {
             "scraper": "scraper",
             "generate_response": "generate_response",
-            END: END # Added END for completeness, though generate_response might cover it
+            END: END
         }
     )
 
     workflow.add_edge("scraper", "generate_response")
     
-    # New conditional edge after generate_response
     workflow.add_conditional_edges(
         "generate_response",
         route_after_generate_response,

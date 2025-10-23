@@ -11,10 +11,9 @@ def fetch_and_save_all_feeds(output_path="rss_feeds_output.json"):
         if not feed_url:
             logger.warning(f"No RSS feed found for company {company}")
             continue
-        entries = RSSParser.parse_feed(feed_url, max_entries=50)  # Increase if needed
+        entries = RSSParser.parse_feed(feed_url, max_entries=50)
         company_data[company] = entries
         logger.info(f"Fetched {len(entries)} entries for {company}")
-    # Write all entries to JSON file
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(company_data, f, indent=2, ensure_ascii=False)
     logger.info(f"Saved RSS feed data of all companies to {output_path}")

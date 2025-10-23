@@ -23,6 +23,12 @@ class QueryClassification(BaseModel):
     topic: Optional[str] = Field(
         None, description="The specific topic of interest for direct queries, or null for discovery queries"
     )
+    selected_blog_index: Optional[int] = Field(
+        None, description="The 1-based index of the selected blog post if query_type is 'blog_selection'"
+    )
+    selected_blog_title: Optional[str] = Field(
+        None, description="The title of the selected blog post if query_type is 'blog_selection'"
+    )
     reasoning: str = Field(..., description="A brief explanation for the classification")
 
 
@@ -33,12 +39,11 @@ async def classify_query_node(state: AgentState) -> AgentState:
     logger.info("=== CLASSIFY QUERY NODE ===")
 
     last_message = state["messages"][-1].content
-    blog_titles = state.get("blog_titles", []) # Get blog titles from state
+    blog_titles = state.get("blog_titles", [])
     logger.debug(f"classifying query: {last_message}, with blog_titles present: {bool(blog_titles)}")
 
     model = get_internal_model()
 
-    # Adjust prompt based on whether blog titles were previously listed
     if blog_titles:
         titles_list = "\n".join([f"- {blog['title']}" for blog in blog_titles])
         system_prompt_content = QUERY_CLASSIFIER_PROMPT + (
@@ -54,13 +59,11 @@ async def classify_query_node(state: AgentState) -> AgentState:
     ]
 
     classification_result = None
-    for i in range(3):  # Retry up to 3 times
+    for i in range(3):
         try:
             response = await model.ainvoke(messages)
             logger.debug(f"Classifier response attempt {i+1}: {response.content}")
             
-            # Attempt to parse with Pydantic
-            # Extract JSON from markdown code block if present
             json_string = str(response.content).strip()
             if json_string.startswith("```json") and json_string.endswith("```"):
                 json_string = json_string[len("```json"): -len("```")].strip()
@@ -71,21 +74,23 @@ async def classify_query_node(state: AgentState) -> AgentState:
             logger.warning(f"Attempt {i+1} failed to parse or validate classification response: {e}")
             if i == 2:
                 logger.error(f"Failed to parse or validate classification response after multiple retries: {e}")
-                # Fallback to default unknown classification
                 classification_result = QueryClassification(
                     query_type="unknown",
                     company_name=None,
                     topic=None,
+                    selected_blog_index=None,
+                    selected_blog_title=None,
                     reasoning="Failed to classify after multiple retries."
                 )
-            await asyncio.sleep(1) # Optionally, add a delay before retrying
+            await asyncio.sleep(1)
 
     if classification_result is None:
-        # This case should ideally be caught by the last retry's fallback, but as a safeguard
         classification_result = QueryClassification(
             query_type="unknown",
             company_name=None,
             topic=None,
+            selected_blog_index=None,
+            selected_blog_title=None,
             reasoning="Classification failed unexpectedly."
         )
 
@@ -96,8 +101,8 @@ async def classify_query_node(state: AgentState) -> AgentState:
         "query_type": classification_result.query_type,
         "company_name": classification_result.company_name,
         "topic": classification_result.topic,
-        "selected_blog_index": getattr(classification_result, "selected_blog_index", None), # Safely get attribute
-        "selected_blog_title": getattr(classification_result, "selected_blog_title", None), # Safely get attribute
+        "selected_blog_index": getattr(classification_result, "selected_blog_index", None),
+        "selected_blog_title": getattr(classification_result, "selected_blog_title", None),
         "step_count": state["step_count"] + 1
     })
     return new_state

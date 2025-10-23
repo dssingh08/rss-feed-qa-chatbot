@@ -46,13 +46,13 @@ async def fetch_rss_titles_node(state: AgentState) -> AgentState:
     logger.info(f"Fetched {len(blog_titles)} blog titles from {company_name}")
 
     if blog_titles:
-        response_text = f"Here are the latest blogs from {company_name}:\n\n" # Corrected 'lateste' to 'latest'
+        response_text = f"Here are the latest blogs from {company_name}:\n\n"
 
         for idx, blog in enumerate(blog_titles, 1):
-            response_text += f"{idx}. **{blog['title']}**\n" # Corrected to use 'title' and added bold markdown
+            response_text += f"{idx}. **{blog['title']}**\n"
             response_text += f"{blog['published']}\n"
             response_text += f"{blog['description'][:150]}...\n\n"
-        response_text += "Which one would you like to learn more about?" # Moved outside loop
+        response_text += "Which one would you like to learn more about?"
     else:
         response_text = f"I couldn't find any recent blogs from {company_name}."
     
@@ -62,7 +62,6 @@ async def fetch_rss_titles_node(state: AgentState) -> AgentState:
         "step_count": state["step_count"] + 1
     })
 
-    # Ensure should_scrape is False at this stage, as no selection has been made yet
     new_state.update({"should_scrape": False})
 
     return new_state
