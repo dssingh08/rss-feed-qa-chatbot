@@ -48,6 +48,20 @@ class Settings(BaseSettings):
     embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
     vector_size: int = 384
 
+    COMPANY_RSS_FEEDS: dict = {
+        "google": "https://blog.google/rss/",
+        "openai": "https://openai.com/blog/rss.xml",
+        "amazon": "https://aws.amazon.com/blogs/aws/feed/",
+        "microsoft": "https://devblogs.microsoft.com/feed/",
+        "meta": "https://engineering.fb.com/feed/",
+        "anthropic": "https://raw.githubusercontent.com/Olshansk/rss-feeds/refs/heads/main/feeds/feed_anthropic.xml",
+        "langchain": "https://blog.langchain.com/rss/"
+    }
+
+    @property
+    def supported_companies(self) -> list[str]:
+        return list(self.COMPANY_RSS_FEEDS.keys())
+
     class Config:
         env_file = ".env"
         case_sensitive = False

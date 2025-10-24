@@ -12,6 +12,7 @@ from src.nodes.blog_search import search_blog_node
 from src.nodes.scraper import scraper_node
 from src.nodes.response_generator import generate_response_node
 from src.nodes.rss_selection_processor import rss_selection_processor_node
+from src.nodes.summarizer import summarizer_node
 from src.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -63,12 +64,16 @@ def route_after_rss_selection(state: AgentState) -> Literal["scraper", "generate
         return "generate_response"
 
 
-def route_after_generate_response(state: AgentState) -> Literal["rss_selection_processor", END]:
-    """ Route after generate response based on query type """
+def route_after_generate_response_with_summary(state: AgentState) -> Literal["rss_selection_processor", "summarizer", END]:
+    """ Route after generate response based on query type or trigger summarization """
     query_type = state.get("query_type", "unknown")
-    logger.info(f"Routing after generate response: {query_type}")
+    step_count = state.get("step_count", 0)
+    logger.info(f"Routing after generate response: query_type={query_type}, step_count={step_count}")
+
     if query_type == "blog_selection":
         return "rss_selection_processor"
+    elif step_count % 3 == 0:  
+        return "summarizer"
     return END
 
 
@@ -84,6 +89,7 @@ def create_graph():
     workflow.add_node("search_blog", search_blog_node)
     workflow.add_node("scraper", scraper_node)
     workflow.add_node("generate_response", generate_response_node)
+    workflow.add_node("summarizer", summarizer_node) 
 
 
     workflow.set_entry_point("classify_query")
@@ -130,12 +136,15 @@ def create_graph():
     
     workflow.add_conditional_edges(
         "generate_response",
-        route_after_generate_response,
+        route_after_generate_response_with_summary, 
         {
             "rss_selection_processor": "rss_selection_processor",
+            "summarizer": "summarizer", 
             END: END
         }
     )
+
+    workflow.add_edge("summarizer", END)
 
     checkpointer = MemorySaver()
     graph = workflow.compile(checkpointer=checkpointer)

@@ -69,14 +69,20 @@ async def generate_response_node(state: AgentState) -> AgentState:
             response = await model.ainvoke(messages)
             response_text = response.content
 
-            sources = list(set([r['blog_title'] for r in results]))
-            response_text += f"\n\n*Source: {','.join(sources[:2])}*"
+            unique_sources = {}
+            for r in results:
+                unique_sources[r['blog_url']] = r['blog_title']
+            
+            if unique_sources:
+                source_links = [f"[{title}]({url})" for url, title in unique_sources.items()]
+                response_text += f"\n\n*Sources: {', '.join(source_links)}*"
 
     logger.info("Response generated successfully")
     new_state = state.copy()
     new_state.update({
         "messages": state["messages"] + [AIMessage(content=response_text)],
-        "step_count": state["step_count"] + 1
+        "step_count": state["step_count"] + 1,
+        "query_type": None  
     })
 
     return new_state

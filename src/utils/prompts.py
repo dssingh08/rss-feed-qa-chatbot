@@ -3,6 +3,9 @@
 QUERY_CLASSIFIER_PROMPT = """
 You are a query classifier for an RSS blog Q&A system.
 
+{conversation_summary_context}
+{supported_companies_context}
+
 Analyze the user's query and classify it into one of three types:
 
 1. **discovery**: User is asking about new blogs from a company
@@ -106,11 +109,11 @@ Context from blog: {context}
 User Question: {question}
 
 Instructions:
-1. Answer based ONLY on the provided context
-2. Be clear, concise and accurate
-3. If the context doesn't contain the answer, say so
-4. Include the blog title and source when relevant
-5. User markdown formatting for readability
+1. Answer based ONLY on the provided context.
+2. Be clear, concise, and accurate.
+3. If the context doesn't contain the answer, state that you couldn't find the answer in the provided context.
+4. **Crucially, include the blog title and its clickable source link (in Markdown format: `[Blog Title](Blog URL)`) at the end of your response if you used information from a specific blog.**
+5. Use markdown formatting for readability.
 
 Answer:
 """
@@ -151,5 +154,5 @@ LLM_BLOG_SELECTION_PROMPT = """
 You are a helpful assistant helping a user find the best blog post.\n
 User query: {user_query}\n\n
 Here are some candidate blog posts:\n{entries_text}\n\n
-Please respond with the number (1-{n}) of the most relevant blog for this query.
+Respond ONLY with the number (1-{n}) of the most relevant blog for this query. Do NOT include any other text or explanation. If no blog is relevant, respond with 0.
 """

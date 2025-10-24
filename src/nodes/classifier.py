@@ -9,6 +9,7 @@ from src.state import AgentState
 from src.models import get_internal_model
 from src.utils.prompts import QUERY_CLASSIFIER_PROMPT
 from src.utils.logger import setup_logger
+from src.config import settings # Import settings
 
 logger = setup_logger(__name__)
 
@@ -40,18 +41,29 @@ async def classify_query_node(state: AgentState) -> AgentState:
 
     last_message = state["messages"][-1].content
     blog_titles = state.get("blog_titles", [])
-    logger.debug(f"classifying query: {last_message}, with blog_titles present: {bool(blog_titles)}")
+    conversation_summary = state.get("conversation_summary")
+
+    logger.debug(f"classifying query: {last_message}, with blog_titles present: {bool(blog_titles)}, conversation_summary present: {bool(conversation_summary)}")
 
     model = get_internal_model()
 
+    conversation_summary_context = ""
+    if conversation_summary:
+        conversation_summary_context = f"Current conversation summary: {conversation_summary}\n\n"
+
+    supported_companies_context = f"Supported companies: {', '.join(settings.supported_companies)}\n\n"
+
+    system_prompt_content = QUERY_CLASSIFIER_PROMPT.format(
+        conversation_summary_context=conversation_summary_context,
+        supported_companies_context=supported_companies_context
+    )
+
     if blog_titles:
         titles_list = "\n".join([f"- {blog['title']}" for blog in blog_titles])
-        system_prompt_content = QUERY_CLASSIFIER_PROMPT + (
+        system_prompt_content += (
             f"\n\nNote: A list of blog titles was previously presented to the user:\n{titles_list}\n"
             "If the user's query is a selection from this list (by number or title), classify it as 'blog_selection'."
         )
-    else:
-        system_prompt_content = QUERY_CLASSIFIER_PROMPT
 
     messages = [
         SystemMessage(content=system_prompt_content),

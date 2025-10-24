@@ -51,7 +51,7 @@ with st.sidebar:
     st.divider()
     
     st.header("Available Companies")
-    companies = ["Google", "OpenAI", "Amazon", "Microsoft", "Meta", "Anthropic"]
+    companies = ["Google", "OpenAI", "Amazon", "Microsoft", "Meta", "Anthropic", "Langchain"]
     for company in companies:
         st.markdown(f"- {company}")
     

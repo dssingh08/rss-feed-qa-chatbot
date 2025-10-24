@@ -10,9 +10,8 @@ class AgentState(TypedDict):
 
     messages: Annotated[list[BaseMessage], add_messages]
 
-    summary: str
-
     user_id: str
+    conversation_summary: Optional[str] = None
 
     query_type: Literal["discovery", "direct", "general", "blog_selection", "unknown"]
 

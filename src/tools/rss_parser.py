@@ -4,7 +4,7 @@ import feedparser
 from typing import List, Dict, Optional
 from datetime import datetime
 from src.utils.logger import setup_logger
-
+from src.config import settings # Import settings
 
 logger = setup_logger(__name__)
 
@@ -12,7 +12,7 @@ logger = setup_logger(__name__)
 class RSSParser:
     """ RSS feed parser for extracting blog titles and metadata """
     @staticmethod
-    def parse_feed(feed_url: str, max_entries: int = 5) -> List[Dict]:
+    def parse_feed(feed_url: str, max_entries: int = 10) -> List[Dict]:
         """
         Parse RSS feed and return recent blog titles
         
@@ -91,20 +91,9 @@ class RSSParser:
         except Exception as e:
             logger.error(f"Error searching feed: {str(e)}")
             return None
-        
-COMPANY_RSS_FEEDS = {
-    "google": "https://blog.google/rss/",
-    "openai": "https://openai.com/blog/rss.xml",
-    "amazon": "https://aws.amazon.com/blogs/aws/feed/rss.xml",
-    "microsoft": "https://devblogs.microsoft.com/feed/",
-    "meta": "https://engineering.fb.com/feed/",
-    "anthropic": "https://raw.githubusercontent.com/Olshansk/rss-feeds/refs/heads/main/feeds/feed_anthropic.xml"
-}
-
-
 def get_company_feed(company_name: str) -> Optional[str]:
     """ Get RSS feed URL for a company """
-    feed_url = COMPANY_RSS_FEEDS.get(company_name.lower())
+    feed_url = settings.COMPANY_RSS_FEEDS.get(company_name.lower()) # Use settings.COMPANY_RSS_FEEDS
 
     if feed_url:
         logger.info(f"Found RSS feed for {company_name}: {feed_url}")

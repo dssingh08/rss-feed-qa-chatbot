@@ -6,6 +6,7 @@ from src.models import get_internal_model
 from src.tools.rss_parser import RSSParser, get_company_feed
 from src.utils.prompts import BLOG_SEARCH_PROMPT, LLM_BLOG_SELECTION_PROMPT
 from src.utils.logger import setup_logger
+import re # Import re at the top
 
 logger = setup_logger(__name__)
 
@@ -33,18 +34,25 @@ async def llm_select_best_blog(user_query: str, blog_entries: list) -> dict:
     response = await model.ainvoke([HumanMessage(content=LLM_BLOG_SELECTION_PROMPT.format(
         user_query=user_query,
         entries_text=entries_text,
-        n = len(entries_text)
+        n = len(blog_entries)
     ))])
     logger.info(f"LLM blog selection response: {response.content}")
     
     try:
-        choice_num = int(response.content.strip())
-        if 1 <= choice_num <= len(blog_entries):
-            return blog_entries[choice_num - 1]
+        # Use regex to find the first number in the response
+        match = re.search(r'\d+', response.content.strip())
+        if match:
+            choice_num = int(match.group(0))
+            if 1 <= choice_num <= len(blog_entries):
+                return blog_entries[choice_num - 1]
+            elif choice_num == 0: # LLM explicitly said no relevant blog
+                logger.info("LLM indicated no relevant blog found.")
+                return None
+        logger.warning(f"Could not extract a valid blog selection number from LLM response: {response.content}")
     except Exception as e:
         logger.error(f"Failed to parse LLM blog selection: {e}")
     
-    return blog_entries[0]
+    return None # Return None if parsing fails or no valid selection is made
 
 
 async def search_blog_node(state: AgentState) -> AgentState:
@@ -88,8 +96,11 @@ async def search_blog_node(state: AgentState) -> AgentState:
                     "step_count": state["step_count"] + 1
                 })
                 return new_state
-    logger.warning("No omatching blog found")
+    logger.warning("No matching blog found")
     new_state.update({
+        "selected_blog_url": None,
+        "selected_blog_title": None,
+        "should_scrape": False,
         "messages": state["messages"] + [AIMessage(content=f"I couldn't find a specific blog about '{topic}' from {company_name}. Could you rephrase or try a different topic?")],
         "step_count": state["step_count"] + 1
     })
