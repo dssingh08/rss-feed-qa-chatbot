@@ -171,18 +171,23 @@ class VectorStore:
         Check if blog content already exists in vector store
         """
         try:
-            count_result = self.client.count(
+            search_filter = Filter(
+                must=[FieldCondition(
+                    key="blog_url",
+                    match=MatchValue(value=blog_url)
+                )]
+            )
+            
+            # Using scroll to check for existence
+            scroll_result, _ = self.client.scroll(
                 collection_name=settings.blog_collection_name,
-                query_filter=Filter(
-                    must=[FieldCondition(
-                        key="blog_url",
-                        match=MatchValue(value=blog_url)
-                    )]
-                ),
-                exact=True 
+                scroll_filter=search_filter, # Use scroll_filter for scroll method
+                limit=1, # Only need to find one to confirm existence
+                with_payload=False,
+                with_vectors=False
             )
 
-            exists = count_result.count > 0
+            exists = len(scroll_result) > 0
             logger.debug(f"Blog {blog_url} exists in vector store: {exists}")
             return exists
         except Exception as e:

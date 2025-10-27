@@ -48,11 +48,9 @@ async def rss_selection_processor_node(state: AgentState) -> AgentState:
             should_scrape = False
             scraper_reason = f"Blog content for '{selected_blog['title']}' already exists in vector store."
             logger.info(scraper_reason)
-            response_message = f"You selected: {selected_blog['title']}. I already have information about this blog."
         else:
             should_scrape = True
             scraper_reason = f"User selected blog: {selected_blog['title']}"
-            response_message = f"You selected: {selected_blog['title']}. Now scraping..."
 
         new_state.update({
             "selected_blog_url": selected_blog["link"],
@@ -60,7 +58,6 @@ async def rss_selection_processor_node(state: AgentState) -> AgentState:
             "should_scrape": should_scrape,
             "query_type": "direct",
             "scraper_reason": scraper_reason,
-            "messages": state["messages"] + [AIMessage(content=response_message)]
         })
         logger.info(f"Updated state with selected blog: {selected_blog['link']}")
     else:
