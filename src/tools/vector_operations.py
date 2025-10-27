@@ -115,30 +115,36 @@ class VectorStore:
         return point_ids
     
     def search_blog_content(self, query: str, company_name: Optional[str] = None,
-                            limit: int = 5) -> List[Dict]:
+                            blog_url: Optional[str] = None, limit: int = 5) -> List[Dict]:
         """
         Search for relevant blog content
         
         Args:
             query: Search query
             company_name: Optional company filter
+            blog_url: Optional blog URL filter
             limit: Maximum results
             
         Returns:
             List of search results with content and metadata
         """
-        logger.info(f"Searching vector store for: {query[:50]}...")
+        logger.info(f"Searching vector store for: {query[:50]}... (company: {company_name}, url: {blog_url})")
 
         query_vector = self.encoder.encode(query).tolist()
 
-        query_filter = None
+        must_conditions = []
         if company_name:
-            query_filter = Filter(
-                must=[FieldCondition(
-                    key="company_name",
-                    match=MatchValue(value=company_name)
-                )]
-            )
+            must_conditions.append(FieldCondition(
+                key="company_name",
+                match=MatchValue(value=company_name)
+            ))
+        if blog_url:
+            must_conditions.append(FieldCondition(
+                key="blog_url",
+                match=MatchValue(value=blog_url)
+            ))
+        
+        query_filter = Filter(must=must_conditions) if must_conditions else None
         results = self.client.query_points(
             collection_name=settings.blog_collection_name,
             query=query_vector,
@@ -165,18 +171,18 @@ class VectorStore:
         Check if blog content already exists in vector store
         """
         try:
-            results, _ = self.client.scroll(
+            count_result = self.client.count(
                 collection_name=settings.blog_collection_name,
-                scroll_filter=Filter(
+                query_filter=Filter(
                     must=[FieldCondition(
                         key="blog_url",
                         match=MatchValue(value=blog_url)
                     )]
                 ),
-                limit=1
+                exact=True 
             )
 
-            exists = len(results) > 0
+            exists = count_result.count > 0
             logger.debug(f"Blog {blog_url} exists in vector store: {exists}")
             return exists
         except Exception as e:

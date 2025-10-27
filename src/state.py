@@ -4,6 +4,7 @@ from typing import Annotated, Optional, TypedDict, Literal
 from langchain_core.messages import BaseMessage
 from langgraph.graph.message import add_messages
 
+QueryType = Literal["discovery", "direct", "general", "blog_selection", "contextual_qa", "unknown"]
 
 class AgentState(TypedDict):
     """ State for the RSS Q&A Agent """
@@ -11,9 +12,9 @@ class AgentState(TypedDict):
     messages: Annotated[list[BaseMessage], add_messages]
 
     user_id: str
-    conversation_summary: Optional[str] = None
+    conversation_summary: Optional[str] 
 
-    query_type: Literal["discovery", "direct", "general", "blog_selection", "unknown"]
+    query_type: QueryType 
 
     company_name: Optional[str]
     topic: Optional[str]

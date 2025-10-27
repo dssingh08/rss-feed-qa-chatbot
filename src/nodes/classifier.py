@@ -15,7 +15,7 @@ logger = setup_logger(__name__)
 
 
 class QueryClassification(BaseModel):
-    query_type: Literal["discovery", "direct", "general", "blog_selection", "unknown"] = Field(
+    query_type: Literal["discovery", "direct", "general", "blog_selection", "contextual_qa", "unknown"] = Field(
         ..., description="Classification of the user's query"
     )
     company_name: Optional[str] = Field(
@@ -42,8 +42,10 @@ async def classify_query_node(state: AgentState) -> AgentState:
     last_message = state["messages"][-1].content
     blog_titles = state.get("blog_titles", [])
     conversation_summary = state.get("conversation_summary")
+    selected_blog_title = state.get("selected_blog_title")
+    selected_blog_url = state.get("selected_blog_url")
 
-    logger.debug(f"classifying query: {last_message}, with blog_titles present: {bool(blog_titles)}, conversation_summary present: {bool(conversation_summary)}")
+    logger.debug(f"classifying query: {last_message}, with blog_titles present: {bool(blog_titles)}, conversation_summary present: {bool(conversation_summary)}, selected_blog_title present: {bool(selected_blog_title)}")
 
     model = get_internal_model()
 
@@ -53,9 +55,17 @@ async def classify_query_node(state: AgentState) -> AgentState:
 
     supported_companies_context = f"Supported companies: {', '.join(settings.supported_companies)}\n\n"
 
+    active_blog_context = ""
+    if selected_blog_title and selected_blog_url:
+        active_blog_context = (
+            f"The user is currently discussing the blog post: '{selected_blog_title}' "
+            f"(URL: {selected_blog_url}).\n\n"
+        )
+
     system_prompt_content = QUERY_CLASSIFIER_PROMPT.format(
         conversation_summary_context=conversation_summary_context,
-        supported_companies_context=supported_companies_context
+        supported_companies_context=supported_companies_context,
+        active_blog_context=active_blog_context
     )
 
     if blog_titles:
@@ -106,15 +116,21 @@ async def classify_query_node(state: AgentState) -> AgentState:
             reasoning="Classification failed unexpectedly."
         )
 
-    logger.info(f"Classification: type= {classification_result.query_type}, company={classification_result.company_name}, topic={classification_result.topic}")
+    logger.info(f"Classification: type= {classification_result.query_type}, company={classification_result.company_name}, topic={classification_result.topic}, index={classification_result.selected_blog_index}, title='{classification_result.selected_blog_title}'")
+
+    if classification_result.query_type == "blog_selection":
+        if classification_result.selected_blog_index is None and classification_result.selected_blog_title is None:
+            logger.warning("Query classified as 'blog_selection' but no index or title was extracted. Reclassifying as 'general'.")
+            classification_result.query_type = "general"
+            classification_result.reasoning = "Reclassified: blog_selection query without specific index or title."
 
     new_state = state.copy()
     new_state.update({
         "query_type": classification_result.query_type,
         "company_name": classification_result.company_name,
         "topic": classification_result.topic,
-        "selected_blog_index": getattr(classification_result, "selected_blog_index", None),
-        "selected_blog_title": getattr(classification_result, "selected_blog_title", None),
+        "selected_blog_index": classification_result.selected_blog_index,
+        "selected_blog_title": classification_result.selected_blog_title,
         "step_count": state["step_count"] + 1
     })
     return new_state

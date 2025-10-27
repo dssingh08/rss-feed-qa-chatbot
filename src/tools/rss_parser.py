@@ -30,7 +30,7 @@ class RSSParser:
             feed = feedparser.parse(feed_url)
 
             if feed.bozo:
-                logger.warning(f"Feed parsing warning: {feed.bozo_exception}")
+                logger.warning(f"Feed parsing warning for {feed_url}: {str(feed.bozo_exception)}")
             
             entries = []
 
@@ -93,7 +93,7 @@ class RSSParser:
             return None
 def get_company_feed(company_name: str) -> Optional[str]:
     """ Get RSS feed URL for a company """
-    feed_url = settings.COMPANY_RSS_FEEDS.get(company_name.lower()) # Use settings.COMPANY_RSS_FEEDS
+    feed_url = settings.COMPANY_RSS_FEEDS.get(company_name.lower()) 
 
     if feed_url:
         logger.info(f"Found RSS feed for {company_name}: {feed_url}")

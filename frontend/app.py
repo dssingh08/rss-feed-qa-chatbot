@@ -15,10 +15,13 @@ logging.getLogger().setLevel(logging.CRITICAL)
 
 import streamlit as st
 import json
+import traceback
 from websockets import connect
 from src.config import settings
 from src.utils.logger import setup_logger
 from src.agent import graph
+from src.state import AgentState 
+from langchain_core.runnables import RunnableConfig 
 
 logger = setup_logger(__name__)
 
@@ -34,7 +37,6 @@ st.set_page_config(
 st.title("RSS Q&A Chatbot")
 st.markdown("Ask me about blogs from companies like Google, OpenAI, Amazon, Microsoft and more!")
 
-# Sidebar
 with st.sidebar:
     st.header("Settings")
     
@@ -72,7 +74,6 @@ with st.sidebar:
         st.session_state.messages = []
         st.rerun()
 
-# Initialize session state
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
@@ -99,21 +100,17 @@ if "user_id" not in st.session_state:
         }
 
 
-
-# Display chat history
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
 # Chat input
 if prompt := st.chat_input("Ask about company blogs..."):
-    # Add user message
     st.session_state.messages.append({"role": "user", "content": prompt})
     
     with st.chat_message("user"):
         st.markdown(prompt)
     
-    # Show assistant thinking
     with st.chat_message("assistant"):
         message_placeholder = st.empty()
         message_placeholder.markdown("Thinking...")
@@ -126,8 +123,13 @@ if prompt := st.chat_input("Ask about company blogs..."):
             st.session_state.agent_state["messages"].append(HumanMessage(content=prompt))
             st.session_state.agent_state["response_model"] = model_choice
 
-            final_state = asyncio.run(graph.ainvoke(st.session_state.agent_state, config=config))
-            st.session_state.agent_state = final_state
+            initial_agent_state = AgentState(**st.session_state.agent_state)
+
+            runnable_config: RunnableConfig = {"configurable": {"thread_id": st.session_state.user_id}}
+
+            final_state = asyncio.run(graph.ainvoke(initial_agent_state, config=runnable_config))
+            
+            st.session_state.agent_state.update(final_state)
 
             ai_messages = [msg for msg in final_state["messages"] if msg.type == "ai"]
             if ai_messages:
@@ -139,7 +141,9 @@ if prompt := st.chat_input("Ask about company blogs..."):
             st.session_state.messages.append({"role": "assistant", "content": response})
             
         except Exception as e:
-            logger.error(f"Error processing message: {str(e)}")
-            error_msg = f"Error: {str(e)}"
+            full_traceback = traceback.format_exc()
+            logger.error(f"Error processing message: {str(e)}\n{full_traceback}")
+            
+            error_msg = f"An unexpected error occurred. Please try again. Details: {str(e)}"
             message_placeholder.markdown(error_msg)
             st.session_state.messages.append({"role": "assistant", "content": error_msg})

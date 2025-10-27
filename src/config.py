@@ -16,33 +16,26 @@ class Settings(BaseSettings):
     langsmith_endpoint: str = Field(default="https://api.smith.langchain.com",
         alias="LANGSMITH_ENDPOINT")
     
-    # Google Gemini API
     google_api_key: str = Field(alias="GOOGLE_API_KEY")
 
-    # OpenRouter API for GPT and LLama model
     openrouter_api_key: str = Field(alias="OPENROUTER_API_KEY")
 
-    # Qdrant Configuration
     qdrant_host: str = Field(default="localhost", alias="QDRANT_HOST")
     qdrant_port: int = Field(default=6333, alias="QDRANT_PORT")
     qdrant_url: str = Field(default="http://localhost:6333", alias="QDRANT_URL")
     qdrant_api_key: Optional[str] = Field(default=None, alias="QDRANT_API_KEY")
-    # API Configuration
+    
     api_host: str = Field(default="0.0.0.0", alias="API_HOST")
     api_port: int = Field(default=8000, alias="API_PORT")
 
-    # Logging
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
 
-    # Application settings
     default_response_model: str = Field(default="gemini", alias="DEFAULT_RESPONSE_MODEL")
     message_summary_threshold: int = Field(default=10, alias="MESSAGE_SUMMARY_THRESHOLD")
     max_blog_titles: int = Field(default=5, alias="MAX_BLOG_TITLES")
 
-    # Memory Settings
     sqlite_file_path: str = Field(default="langgraph.sqlite", alias="SQLITE_FILE_PATH")
     
-    # Vector Store Settings
     blog_collection_name: str = "blog_content"
     user_memory_collection_name: str = "user_memory"
     embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
@@ -55,7 +48,9 @@ class Settings(BaseSettings):
         "microsoft": "https://devblogs.microsoft.com/feed/",
         "meta": "https://engineering.fb.com/feed/",
         "anthropic": "https://raw.githubusercontent.com/Olshansk/rss-feeds/refs/heads/main/feeds/feed_anthropic.xml",
-        "langchain": "https://blog.langchain.com/rss/"
+        "langchain": "https://blog.langchain.com/rss/",
+        "uber": "https://www.uber.com/blog/engineering/rss/",
+        "cloudflare": "https://blog.cloudflare.com/tag/engineering/rss/"
     }
 
     @property

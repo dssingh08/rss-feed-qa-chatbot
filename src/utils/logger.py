@@ -12,6 +12,10 @@ def setup_logger(name: str) -> logging.Logger:
     logger = logging.getLogger(name)
     logger.setLevel(getattr(logging, settings.log_level.upper()))
 
+    # Ensure the root logger also captures debug messages for full tracebacks
+    # This might be necessary if the error is not caught by a specific logger
+    logging.getLogger().setLevel(logging.DEBUG)
+
     if logger.handlers:
         return logger
     
@@ -21,7 +25,9 @@ def setup_logger(name: str) -> logging.Logger:
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(logging.DEBUG)
     console_format = logging.Formatter(
-        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        # Add exc_info to the format to ensure tracebacks are printed to console
+        # This will be handled by the logger.error(exc_info=True) call
     )
     console_handler.setFormatter(console_format)
 

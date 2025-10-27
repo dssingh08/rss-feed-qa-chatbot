@@ -43,8 +43,8 @@ class BlogScraper:
             if not self.browser:
                 self.playwright = await async_playwright().start()
                 self.browser = await self.playwright.chromium.launch(headless=True)
-            page = await self.browser.new_page()
-            await page.goto(url, wait_until="networkidle", timeout=60000)
+            page = await self.browser.new_page(user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.88 Safari/537.36")
+            await page.goto(url, wait_until="domcontentloaded", timeout=90000)
 
             content = await page.content()
             await page.close()

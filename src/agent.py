@@ -2,10 +2,10 @@
 
 import platform
 import asyncio
-from typing import Literal
+from typing import Literal, Union
 from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.memory import MemorySaver
-from src.state import AgentState
+from src.state import AgentState, QueryType 
 from src.nodes.classifier import classify_query_node
 from src.nodes.rss_fetcher import fetch_rss_titles_node
 from src.nodes.blog_search import search_blog_node
@@ -18,62 +18,62 @@ from src.utils.logger import setup_logger
 logger = setup_logger(__name__)
 
 
-def route_after_classify(state: AgentState) -> Literal["fetch_rss", "search_blog", "generate_response"]:
+def route_after_classify(state: AgentState) -> str:
     """ Route based on query classification """
     query_type = state.get("query_type", "unknown")
-    logger.info(f"Routing after classify: {query_type}")
+    blog_titles = state.get("blog_titles", [])
+    logger.info(f"Routing after classify: {query_type}, blog_titles present: {bool(blog_titles)}")
 
-    if query_type == "discovery":
-        return "fetch_rss"
-    elif query_type == "direct":
-        return "search_blog"
-    elif query_type == "general": 
-        return "generate_response"
-    else:
-        return "generate_response"
+    # If it's a blog selection query but no blog titles have been fetched yet,
+    # route to fetch RSS first to populate blog_titles.
+    if query_type == "blog_selection" and not blog_titles:
+        logger.info("Blog selection query with no existing blog titles, routing to Discover Blogs.")
+        return "discovery_for_selection" # A temporary route to fetch RSS
+    
+    return query_type
 
 
-def route_after_search(state: AgentState) -> Literal["scraper", "generate_response"]:
+def route_after_search(state: AgentState) -> Literal["Scrape Blog Content", "Generate Response"]:
     """ Route after blog search """
     should_scrape = state.get("should_scrape", False)
     logger.info(f"Routing after search: scrape={should_scrape}")
 
     if should_scrape and state.get("selected_blog_url"):
-        return "scraper"
+        return "Scrape Blog Content"
     else:
-        return "generate_response"
+        return "Generate Response"
 
 
-def route_after_rss_fetch(state: AgentState) -> Literal["generate_response", END]:
+def route_after_rss_fetch(state: AgentState) -> Literal["Generate Response", END]:
     """ Route after RSS fetch - if titles are present, go to generate response, else END """
     blog_titles = state.get("blog_titles", [])
     if blog_titles:
-        return "generate_response"
+        return "Generate Response"
     else:
         return END
 
-def route_after_rss_selection(state: AgentState) -> Literal["scraper", "generate_response", END]:
+def route_after_rss_selection(state: AgentState) -> Literal["Scrape Blog Content", "Generate Response", END]:
     """ Route after RSS selection processing """
     should_scrape = state.get("should_scrape", False)
     selected_blog_url = state.get("selected_blog_url")
     logger.info(f"Routing after RSS selection: should_scrape={should_scrape}, url_present={bool(selected_blog_url)}")
 
     if should_scrape and selected_blog_url:
-        return "scraper"
+        return "Scrape Blog Content"
     else:
-        return "generate_response"
+        return "Generate Response"
 
 
-def route_after_generate_response_with_summary(state: AgentState) -> Literal["rss_selection_processor", "summarizer", END]:
+def route_after_generate_response_with_summary(state: AgentState) -> Literal["Process Blog Selection", "Summarize Conversation", END]:
     """ Route after generate response based on query type or trigger summarization """
     query_type = state.get("query_type", "unknown")
     step_count = state.get("step_count", 0)
     logger.info(f"Routing after generate response: query_type={query_type}, step_count={step_count}")
 
     if query_type == "blog_selection":
-        return "rss_selection_processor"
+        return "Process Blog Selection"
     elif step_count % 3 == 0:  
-        return "summarizer"
+        return "Summarize Conversation"
     return END
 
 
@@ -83,68 +83,72 @@ def create_graph():
 
     workflow = StateGraph(AgentState)
 
-    workflow.add_node("classify_query", classify_query_node)
-    workflow.add_node("fetch_rss", fetch_rss_titles_node)
-    workflow.add_node("rss_selection_processor", rss_selection_processor_node)
-    workflow.add_node("search_blog", search_blog_node)
-    workflow.add_node("scraper", scraper_node)
-    workflow.add_node("generate_response", generate_response_node)
-    workflow.add_node("summarizer", summarizer_node) 
+    workflow.add_node("Classify Query", classify_query_node)
+    workflow.add_node("Discover Blogs", fetch_rss_titles_node)
+    workflow.add_node("Process Blog Selection", rss_selection_processor_node)
+    workflow.add_node("Find Blog by Topic", search_blog_node)
+    workflow.add_node("Scrape Blog Content", scraper_node)
+    workflow.add_node("Generate Response", generate_response_node)
+    workflow.add_node("Summarize Conversation", summarizer_node) 
 
 
-    workflow.set_entry_point("classify_query")
+    workflow.set_entry_point("Classify Query")
 
     workflow.add_conditional_edges(
-        "classify_query",
+        "Classify Query",
         route_after_classify,
         {
-            "fetch_rss": "fetch_rss",
-            "search_blog": "search_blog",
-            "generate_response": "generate_response"
+            "discovery": "Discover Blogs",
+            "direct": "Find Blog by Topic",
+            "blog_selection": "Process Blog Selection",
+            "contextual_qa": "Generate Response",
+            "general": "Generate Response",
+            "unknown": "Generate Response",
+            "discovery_for_selection": "Discover Blogs" 
         }
     )
 
     workflow.add_conditional_edges(
-        "search_blog",
+        "Find Blog by Topic",
         route_after_search,
         {
-            "scraper": "scraper",
-            "generate_response": "generate_response"
+            "Scrape Blog Content": "Scrape Blog Content",
+            "Generate Response": "Generate Response"
         }
     )
 
     workflow.add_conditional_edges(
-        "fetch_rss",
+        "Discover Blogs",
         route_after_rss_fetch,
         {
-            "generate_response": "generate_response",
+            "Generate Response": "Generate Response",
             END: END
         }
     )
 
     workflow.add_conditional_edges(
-        "rss_selection_processor",
+        "Process Blog Selection",
         route_after_rss_selection,
         {
-            "scraper": "scraper",
-            "generate_response": "generate_response",
+            "Scrape Blog Content": "Scrape Blog Content",
+            "Generate Response": "Generate Response",
             END: END
         }
     )
 
-    workflow.add_edge("scraper", "generate_response")
+    workflow.add_edge("Scrape Blog Content", "Generate Response")
     
     workflow.add_conditional_edges(
-        "generate_response",
+        "Generate Response",
         route_after_generate_response_with_summary, 
         {
-            "rss_selection_processor": "rss_selection_processor",
-            "summarizer": "summarizer", 
+            "Process Blog Selection": "Process Blog Selection",
+            "Summarize Conversation": "Summarize Conversation", 
             END: END
         }
     )
 
-    workflow.add_edge("summarizer", END)
+    workflow.add_edge("Summarize Conversation", END)
 
     checkpointer = MemorySaver()
     graph = workflow.compile(checkpointer=checkpointer)
@@ -155,3 +159,10 @@ def create_graph():
 
 
 graph = create_graph()
+
+async def invoke_graph(state: AgentState):
+    try:
+        return await graph.ainvoke(state)
+    except Exception as e:
+        logger.error(f"Error during graph invocation: {e}", exc_info=True)
+        raise

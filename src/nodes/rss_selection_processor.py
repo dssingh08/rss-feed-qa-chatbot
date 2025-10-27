@@ -3,6 +3,7 @@
 from langchain_core.messages import AIMessage
 from src.state import AgentState
 from src.utils.logger import setup_logger
+from src.tools.vector_operations import vector_store # Import vector_store
 
 logger = setup_logger(__name__)
 
@@ -42,13 +43,24 @@ async def rss_selection_processor_node(state: AgentState) -> AgentState:
     
     if selected_blog:
         logger.info(f"User selected blog: {selected_blog['title']}")
+        
+        if vector_store.check_blog_exists(selected_blog["link"]):
+            should_scrape = False
+            scraper_reason = f"Blog content for '{selected_blog['title']}' already exists in vector store."
+            logger.info(scraper_reason)
+            response_message = f"You selected: {selected_blog['title']}. I already have information about this blog."
+        else:
+            should_scrape = True
+            scraper_reason = f"User selected blog: {selected_blog['title']}"
+            response_message = f"You selected: {selected_blog['title']}. Now scraping..."
+
         new_state.update({
             "selected_blog_url": selected_blog["link"],
             "selected_blog_title": selected_blog["title"],
-            "should_scrape": True,
+            "should_scrape": should_scrape,
             "query_type": "direct",
-            "scraper_reason": f"User selected blog: {selected_blog['title']}",
-            "messages": state["messages"] + [AIMessage(content=f"You selected: {selected_blog['title']}. Now scraping...")]
+            "scraper_reason": scraper_reason,
+            "messages": state["messages"] + [AIMessage(content=response_message)]
         })
         logger.info(f"Updated state with selected blog: {selected_blog['link']}")
     else:

@@ -52,7 +52,7 @@ async def llm_select_best_blog(user_query: str, blog_entries: list) -> dict:
     except Exception as e:
         logger.error(f"Failed to parse LLM blog selection: {e}")
     
-    return None # Return None if parsing fails or no valid selection is made
+    return None 
 
 
 async def search_blog_node(state: AgentState) -> AgentState:
