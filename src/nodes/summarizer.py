@@ -30,7 +30,8 @@ async def summarizer_node(state: AgentState) -> AgentState:
         logger.info("No conversation history to summarize.")
         return state.copy()
 
-    model = get_internal_model()
+    model_choice = state.get("response_model", "gemini")
+    model = get_internal_model(model_choice)
     
     response = await model.ainvoke([HumanMessage(content=MEMORY_SUMMARIZATION_PROMPT.format(conversation=conversation_text))])
     summary = response.content.strip()

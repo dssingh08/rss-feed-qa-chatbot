@@ -19,9 +19,7 @@ import traceback
 from websockets import connect
 from src.config import settings
 from src.utils.logger import setup_logger
-from src.agent import graph
-from src.state import AgentState 
-from langchain_core.runnables import RunnableConfig 
+# Removed direct graph dependencies
 
 logger = setup_logger(__name__)
 
@@ -42,9 +40,12 @@ with st.sidebar:
     
     model_choice = st.selectbox(
         "Response Model",
-        options=["gemini", "gpt4o", "llama"],
+        options=["gemini", "gemini-2.5-flash-lite", "gemini-3-flash", "gemini-1.5-flash", "gpt4o", "llama"],
         format_func=lambda x: {
             "gemini": "Gemini 2.5 Flash",
+            "gemini-2.5-flash-lite": "Gemini 2.5 Flash Lite",
+            "gemini-3-flash": "Gemini 3 Flash",
+            "gemini-1.5-flash": "Gemini 1.5 Flash",
             "gpt4o": "GPT-4o",
             "llama": "Llama 3.1"
         }[x]
@@ -82,22 +83,7 @@ if "user_id" not in st.session_state:
     st.session_state.user_id = str(uuid.uuid4())
 
     if "agent_state" not in st.session_state:
-        st.session_state.agent_state = {
-            "messages": [],
-            "user_id": st.session_state.user_id,
-            "summary": "",
-            "query_type": "unknown",
-            "company_name": None,
-            "topic": None,
-            "blog_titles": None,
-            "selected_blog_url": None,
-            "selected_blog_title": None,
-            "vector_store_ids": [],
-            "should_scrape": False,
-            "scraper_reason": None,
-            "response_model": "gemini",
-            "step_count": 0
-        }
+        st.session_state.agent_state = {}
 
 
 for message in st.session_state.messages:
@@ -116,28 +102,40 @@ if prompt := st.chat_input("Ask about company blogs..."):
         message_placeholder.markdown("Thinking...")
         
         try:
-            from langchain_core.messages import HumanMessage
+            payload = {
+                "user_id": st.session_state.user_id,
+                "message": prompt,
+                "model": model_choice
+            }
             
-            config = {"configurable": {"thread_id": st.session_state.user_id}}
+            import requests
             
-            st.session_state.agent_state["messages"].append(HumanMessage(content=prompt))
-            st.session_state.agent_state["response_model"] = model_choice
-
-            initial_agent_state = AgentState(**st.session_state.agent_state)
-
-            runnable_config: RunnableConfig = {"configurable": {"thread_id": st.session_state.user_id}}
-
-            final_state = asyncio.run(graph.ainvoke(initial_agent_state, config=runnable_config))
+            def stream_response():
+                try:
+                    with requests.post(
+                        "http://127.0.0.1:8000/api/chat/stream",
+                        json=payload,
+                        stream=True,
+                        timeout=120.0
+                    ) as r:
+                        r.raise_for_status()
+                        for line in r.iter_lines():
+                            if line:
+                                line = line.decode('utf-8')
+                                if line.startswith("data: "):
+                                    data_str = line[6:]
+                                    try:
+                                        data_json = json.loads(data_str)
+                                        if "chunk" in data_json:
+                                            yield data_json["chunk"]
+                                        elif "error" in data_json:
+                                            yield f"\n\n**Error:** {data_json['error']}"
+                                    except json.JSONDecodeError:
+                                        pass
+                except Exception as e:
+                    yield f"An error occurred: {str(e)}"
             
-            st.session_state.agent_state.update(final_state)
-
-            ai_messages = [msg for msg in final_state["messages"] if msg.type == "ai"]
-            if ai_messages:
-                response = ai_messages[-1].content
-            else:
-                response = "I couldn't process that request. Please try again."
-            
-            message_placeholder.markdown(response)
+            response = message_placeholder.write_stream(stream_response())
             st.session_state.messages.append({"role": "assistant", "content": response})
             
         except Exception as e:

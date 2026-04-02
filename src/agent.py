@@ -33,30 +33,11 @@ def route_after_classify(state: AgentState) -> str:
     return query_type
 
 
-def route_after_search(state: AgentState) -> Literal["Scrape Blog Content", "Generate Response"]:
-    """ Route after blog search """
-    should_scrape = state.get("should_scrape", False)
-    logger.info(f"Routing after search: scrape={should_scrape}")
-
-    if should_scrape and state.get("selected_blog_url"):
-        return "Scrape Blog Content"
-    else:
-        return "Generate Response"
-
-
-def route_after_rss_fetch(state: AgentState) -> Literal["Generate Response", END]:
-    """ Route after RSS fetch - if titles are present, go to generate response, else END """
-    blog_titles = state.get("blog_titles", [])
-    if blog_titles:
-        return "Generate Response"
-    else:
-        return END
-
-def route_after_rss_selection(state: AgentState) -> Literal["Scrape Blog Content", "Generate Response", END]:
-    """ Route after RSS selection processing """
+def route_check_scrape(state: AgentState) -> Literal["Scrape Blog Content", "Generate Response", END]:
+    """ Universal router for endpoints that supply a selected URL to scrape """
     should_scrape = state.get("should_scrape", False)
     selected_blog_url = state.get("selected_blog_url")
-    logger.info(f"Routing after RSS selection: should_scrape={should_scrape}, url_present={bool(selected_blog_url)}")
+    logger.info(f"Checking scrape routing: should_scrape={should_scrape}, url={selected_blog_url}")
 
     if should_scrape and selected_blog_url:
         return "Scrape Blog Content"
@@ -64,15 +45,25 @@ def route_after_rss_selection(state: AgentState) -> Literal["Scrape Blog Content
         return "Generate Response"
 
 
-def route_after_generate_response_with_summary(state: AgentState) -> Literal["Process Blog Selection", "Summarize Conversation", END]:
-    """ Route after generate response based on query type or trigger summarization """
+def route_after_rss_fetch(state: AgentState) -> Literal["Process Blog Selection", "Generate Response", END]:
+    """ Route after RSS fetch - if titles are present, go to process or generate response. Else END """
+    blog_titles = state.get("blog_titles", [])
     query_type = state.get("query_type", "unknown")
-    step_count = state.get("step_count", 0)
-    logger.info(f"Routing after generate response: query_type={query_type}, step_count={step_count}")
+    
+    if blog_titles:
+        if query_type == "blog_selection":
+            return "Process Blog Selection"
+        return "Generate Response"
+    else:
+        return END
 
-    if query_type == "blog_selection":
-        return "Process Blog Selection"
-    elif step_count % 3 == 0:  
+
+def route_after_generation(state: AgentState) -> Literal["Summarize Conversation", END]:
+    """ Route after generate response based on step count """
+    step_count = state.get("step_count", 0)
+    logger.info(f"Routing after generation: step_count={step_count}")
+
+    if step_count > 0 and step_count % 3 == 0:  
         return "Summarize Conversation"
     return END
 
@@ -110,10 +101,11 @@ def create_graph():
 
     workflow.add_conditional_edges(
         "Find Blog by Topic",
-        route_after_search,
+        route_check_scrape,
         {
             "Scrape Blog Content": "Scrape Blog Content",
-            "Generate Response": "Generate Response"
+            "Generate Response": "Generate Response",
+            END: END
         }
     )
 
@@ -121,6 +113,7 @@ def create_graph():
         "Discover Blogs",
         route_after_rss_fetch,
         {
+            "Process Blog Selection": "Process Blog Selection",
             "Generate Response": "Generate Response",
             END: END
         }
@@ -128,7 +121,7 @@ def create_graph():
 
     workflow.add_conditional_edges(
         "Process Blog Selection",
-        route_after_rss_selection,
+        route_check_scrape,
         {
             "Scrape Blog Content": "Scrape Blog Content",
             "Generate Response": "Generate Response",
@@ -140,9 +133,8 @@ def create_graph():
     
     workflow.add_conditional_edges(
         "Generate Response",
-        route_after_generate_response_with_summary, 
+        route_after_generation, 
         {
-            "Process Blog Selection": "Process Blog Selection",
             "Summarize Conversation": "Summarize Conversation", 
             END: END
         }

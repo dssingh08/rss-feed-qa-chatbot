@@ -38,7 +38,7 @@ class Settings(BaseSettings):
     
     blog_collection_name: str = "blog_content"
     user_memory_collection_name: str = "user_memory"
-    embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
+    embedding_model: str = "models/embedding-001"
     vector_size: int = 384
 
     COMPANY_RSS_FEEDS: dict = {

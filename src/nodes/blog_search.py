@@ -11,13 +11,14 @@ import re # Import re at the top
 logger = setup_logger(__name__)
 
 
-async def llm_select_best_blog(user_query: str, blog_entries: list) -> dict:
+async def llm_select_best_blog(user_query: str, blog_entries: list, model_choice: str = "gemini") -> dict:
     """
     Ask an LLM to select the best blog post from RSS entries based on user query
     
     Args:
         user_query: the original user question or intent
         blog_entries: List of dicts with blog info (title, description, link)
+        model_choice: The model selected by the user
     
     Returns:
         The dict representing the chosen blog or None
@@ -28,8 +29,8 @@ async def llm_select_best_blog(user_query: str, blog_entries: list) -> dict:
     entries_text = "\n".join(
         [f"{i+1}. Title: {b['title']}\n   Description: {b['description'][:200]}" for i, b in enumerate(blog_entries)]
     )
-        
-    model = get_internal_model()
+    
+    model = get_internal_model(model_choice)
     
     response = await model.ainvoke([HumanMessage(content=LLM_BLOG_SELECTION_PROMPT.format(
         user_query=user_query,
@@ -69,7 +70,8 @@ async def search_blog_node(state: AgentState) -> AgentState:
 
     logger.info(f"Searching for blog: company={company_name}, topic={topic}")
 
-    model = get_internal_model()
+    model_choice = state.get("response_model", "gemini")
+    model = get_internal_model(model_choice)
     search_prompt = BLOG_SEARCH_PROMPT.format(
         user_query=user_query,
         company_name=company_name or "Any"
@@ -83,7 +85,7 @@ async def search_blog_node(state: AgentState) -> AgentState:
         feed_url = get_company_feed(company_name)
         if feed_url:
             rss_entries = RSSParser.parse_feed(feed_url, max_entries=10)
-            found_blog = await llm_select_best_blog(user_query, rss_entries)
+            found_blog = await llm_select_best_blog(user_query, rss_entries, model_choice)
 
             if found_blog:
                 logger.info(f"Found matching blog: {found_blog['title']}")

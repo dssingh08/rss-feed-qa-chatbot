@@ -28,6 +28,15 @@ async def scraper_node(state: AgentState) -> AgentState:
 
     new_state = state.copy()
 
+    if blog_url and vector_store.check_blog_exists(blog_url):
+        logger.info(f"Blog already cached in Qdrant: {blog_url}. Skipping scrape.")
+        new_state.update({
+            "should_scrape": False,
+            "messages": state["messages"] + [AIMessage(content=f"I already have the blog '{blog_title}' in my memory. What would you like to know about it?")],
+            "step_count": state['step_count'] + 1
+        })
+        return new_state
+
     content = await scrape_blog(blog_url)
 
     if not content:

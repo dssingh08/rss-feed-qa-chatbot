@@ -33,3 +33,5 @@ class AgentState(TypedDict):
     response_model: str
 
     step_count: int
+
+    retrieved_docs: Optional[list[dict]]

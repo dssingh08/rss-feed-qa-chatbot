@@ -6,7 +6,7 @@ from qdrant_client.models import (
     Distance, VectorParams, PointStruct,
     Filter, FieldCondition, MatchValue, PayloadSchemaType
 )
-from sentence_transformers import SentenceTransformer
+from langchain_huggingface import HuggingFaceEmbeddings
 import uuid
 from src.config import settings
 from src.utils.logger import setup_logger
@@ -20,7 +20,10 @@ class VectorStore:
     def __init__(self):
         logger.info(f"Connecting to Qdrant at {settings.qdrant_url}")
         self.client = QdrantClient(url=settings.qdrant_url, api_key=settings.qdrant_api_key)
-        self.encoder = SentenceTransformer(settings.embedding_model)
+        self.encoder = HuggingFaceEmbeddings(
+            model_name="all-MiniLM-L6-v2",
+            cache_folder=".embeddings_cache"
+        )
         self._ensure_collections()
     
     def _ensure_collections(self):
@@ -37,24 +40,25 @@ class VectorStore:
                     )
                 )
                 
-                if collection_name == settings.blog_collection_name:
-                    logger.info("Creating payload indexes for blog_content collection")
-                    try:
-                        self.client.create_payload_index(
-                            collection_name=collection_name,
-                            field_name="company_name",
-                            field_schema=PayloadSchemaType.KEYWORD
-                        )
-                        logger.info("Created index for company_name")
-                        
-                        self.client.create_payload_index(
-                            collection_name=collection_name,
-                            field_name="blog_url",
-                            field_schema=PayloadSchemaType.KEYWORD
-                        )
-                        logger.info("Created index for blog_url")
-                    except Exception as e:
-                        logger.warning(f"Could not create payload indexes: {e}")
+            if collection_name == settings.blog_collection_name:
+                try:
+                    self.client.create_payload_index(
+                        collection_name=collection_name,
+                        field_name="company_name",
+                        field_schema=PayloadSchemaType.KEYWORD
+                    )
+                    self.client.create_payload_index(
+                        collection_name=collection_name,
+                        field_name="blog_url",
+                        field_schema=PayloadSchemaType.KEYWORD
+                    )
+                    self.client.create_payload_index(
+                        collection_name=collection_name,
+                        field_name="parent_url",
+                        field_schema=PayloadSchemaType.KEYWORD
+                    )
+                except Exception as e:
+                    pass # Indexes likely already exist
     
     def add_blog_content(
             self, 
@@ -62,7 +66,9 @@ class VectorStore:
             blog_url: str,
             blog_title: str,
             company_name: str,
-            chunk_size: int = 1000
+            chunk_size: int = 1000,
+            depth: int = 0,
+            parent_url: Optional[str] = None
     ) -> List[str]:
         """
         Add blog content to vector store
@@ -82,7 +88,7 @@ class VectorStore:
         chunks = [content[i:i+chunk_size] for i in range(0, len(content), chunk_size)]
         logger.debug(f"Split content into {len(chunks)} chunks")
 
-        embeddings = self.encoder.encode(chunks).tolist()
+        embeddings = self.encoder.embed_documents(chunks)
 
         points = []
         point_ids = []
@@ -100,7 +106,9 @@ class VectorStore:
                     "blog_title": blog_title,
                     "company_name": company_name,
                     "chunk_index": idx,
-                    "total_chunks": len(chunks)
+                    "total_chunks": len(chunks),
+                    "depth": depth,
+                    "parent_url": parent_url
                 }
             )
 
@@ -130,20 +138,28 @@ class VectorStore:
         """
         logger.info(f"Searching vector store for: {query[:50]}... (company: {company_name}, url: {blog_url})")
 
-        query_vector = self.encoder.encode(query).tolist()
+        query_vector = self.encoder.embed_query(query)
 
         must_conditions = []
+        should_conditions = []
         if company_name:
             must_conditions.append(FieldCondition(
                 key="company_name",
                 match=MatchValue(value=company_name)
             ))
         if blog_url:
-            must_conditions.append(FieldCondition(
+            should_conditions.append(FieldCondition(
                 key="blog_url",
                 match=MatchValue(value=blog_url)
             ))
+            should_conditions.append(FieldCondition(
+                key="parent_url",
+                match=MatchValue(value=blog_url)
+            ))
         
+        if should_conditions:
+            must_conditions.append(Filter(should=should_conditions))
+            
         query_filter = Filter(must=must_conditions) if must_conditions else None
         results = self.client.query_points(
             collection_name=settings.blog_collection_name,
@@ -161,6 +177,8 @@ class VectorStore:
                 "blog_title": payload.get("blog_title", ""),
                 "blog_url": payload.get("blog_url", ""),
                 "company_name": payload.get("company_name", ""),
+                "depth": payload.get("depth", 0),
+                "parent_url": payload.get("parent_url"),
                 "score": getattr(result, "score", None)
             })
         logger.info(f"Found {len(formatted_results)} results")

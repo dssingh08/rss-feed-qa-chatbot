@@ -5,6 +5,7 @@ You are a query classifier for an RSS blog Q&A system.
 
 {conversation_summary_context}
 {supported_companies_context}
+{active_blog_context}
 
 Analyze the user's query and classify it into one of four types:
 
@@ -66,7 +67,6 @@ Response ONLY with valid JSON that conforms to the following schema:
 ```
 """
 
-
 BLOG_SEARCH_PROMPT = """
 You are a blog search expert. Given a user's query, generate an optimal search query to find the most relevant blog post.
 
@@ -81,7 +81,6 @@ Consider:
 
 Response with ONLY the search query, no explanantion.
 """
-
 
 SCRAPER_DECISION_PROMPT = """
 You are deciding whether to scrape additional blog content.
@@ -104,24 +103,25 @@ Response with JSON:
 }}
 """
 
-
 RESPONSE_GENERATION_PROMPT = """
 You are a helpful AI assistant that explains blog content clearly and accurately.
 
+{blog_info}
 Context from blog: {context}
 
 User Question: {question}
 
 Instructions:
-1. Answer based ONLY on the provided context.
-2. Be clear, concise, and accurate.
-3. If the context doesn't contain the answer, state that you couldn't find the answer in the provided context.
-4. **Crucially, include the blog title and its clickable source link (in Markdown format: `[Blog Title](Blog URL)`) at the end of your response if you used information from a specific blog.**
-5. Use markdown formatting for readability.
+1. Answer the user's question using the provided context.
+2. If the user refers to a blog by its sequence (e.g., "the 9th blog"), and content is provided above, assume this IS the content they are asking for.
+3. Be clear, concise, and accurate.
+4. **Agentic Context:** If the context above references a specific URL (e.g., `[Link Text](https://...)`) and you absolutely need to read the contents of that URL to answer the user's specific question, use your `fetch_url_context` tool. Do not guess the contents of a hyperlink; fetch it!
+5. If the context absolutely does not contain the answer and you cannot fetch a link, state that you couldn't find the specific answer, but summarize what the blog IS about.
+6. **Crucially, include the blog title and its clickable source link (in Markdown format: `[Blog Title](Blog URL)`) at the end of your response.**
+7. Use markdown formatting for readability.
 
 Answer:
 """
-
 
 GENERAL_RESPONSE_PROMPT = """
 You are a helpful and friendly AI assistant.
@@ -136,7 +136,6 @@ Instructions:
 
 Answer:
 """
-
 
 MEMORY_SUMMARIZATION_PROMPT = """
 Summarize this conversation concisely for future reference.
@@ -153,105 +152,13 @@ Create a brief summary (2-3 sentences) capturing:
 Summary:
 """
 
-
 LLM_BLOG_SELECTION_PROMPT = """
-You are a helpful assistant helping a user find the best blog post.\n
-User query: {user_query}\n\n
-Here are some candidate blog posts:\n{entries_text}\n\n
-Respond ONLY with the number (1-{n}) of the most relevant blog for this query. Do NOT include any other text or explanation. If no blog is relevant, respond with 0.
-"""
+You are a helpful assistant helping a user find the best blog post.
 
+User query: {user_query}
 
-BLOG_SEARCH_PROMPT = """
-You are a blog search expert. Given a user's query, generate an optimal search query to find the most relevant blog post.
+Here are some candidate blog posts:
+{entries_text}
 
-User Query: {user_query}
-Company: {company_name}
-
-Generate a concise search query (5-10 words) that would best match the blog post the user is looking for.
-Consider:
-- The main topic or concept
-- The company context
-- Technical terms if applicable
-
-Response with ONLY the search query, no explanantion.
-"""
-
-
-SCRAPER_DECISION_PROMPT = """
-You are deciding whether to scrape additional blog content.
-
-Current Context:
-- User Query: {user_query}
-- Retrieved Context: {context_summary}
-- Context Quality: {context_quality}
-
-Should we scrape the blog content? Only say YES if:
-1. The user selected a blog from options
-2. We found a specific blog URL but don't have its content
-3. The retrieved context is insufficient to answer the query
-
-Response with JSON:
-{{
-    "should_scrape": true or false,
-    "reason": "brief explanation",
-    "blog_url": "url to scrape" or null
-}}
-"""
-
-
-RESPONSE_GENERATION_PROMPT = """
-You are a helpful AI assistant that explains blog content clearly and accurately.
-
-Context from blog: {context}
-
-User Question: {question}
-
-Instructions:
-1. Answer based ONLY on the provided context.
-2. Be clear, concise, and accurate.
-3. If the context doesn't contain the answer, state that you couldn't find the answer in the provided context.
-4. **Crucially, include the blog title and its clickable source link (in Markdown format: `[Blog Title](Blog URL)`) at the end of your response if you used information from a specific blog.**
-5. Use markdown formatting for readability.
-
-Answer:
-"""
-
-
-GENERAL_RESPONSE_PROMPT = """
-You are a helpful and friendly AI assistant.
-
-User Question: {question}
-
-Instructions:
-1. Respond directly to the user's question or greeting.
-2. Do not mention "context" or "blog content" unless explicitly asked.
-3. Be concise and helpful.
-4. If the question is a greeting, respond appropriately.
-
-Answer:
-"""
-
-
-MEMORY_SUMMARIZATION_PROMPT = """
-Summarize this conversation concisely for future reference.
-
-Conversation History:
-{conversation}
-
-Create a brief summary (2-3 sentences) capturing:
-- Main topics discussed
-- User interests and preferences
-- Key information shared
-- Companies and blog mentioned
-
-Summary:
-"""
-
-
-LLM_BLOG_SELECTION_PROMPT = """
-You are a helpful assistant helping a user find the best blog post.\n
-User query: {user_query}\n\n
-Here are some candidate blog posts:\n{entries_text}\n\n
 Respond ONLY with the number (1-{n}) of the most relevant blog for this query. Do NOT include any other text or explanation. If no blog is relevant, respond with 0.
 """

@@ -23,7 +23,18 @@ logs/
 # Streamlit
 .streamlit/
 
+# Evaluation and Observability
+.deepeval/
+.phoenix_data/
+debug_reports/
+check_phoenix_attr.py
+test_phoenix_query.py
 
+# Local Cache and Temporary Files
+.embeddings_cache/
 questions.txt
 trash/
 rss_feeds_output.json
+*.md.tmp
+*.json.tmp
+graph.md

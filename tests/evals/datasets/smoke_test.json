@@ -1,0 +1,12 @@
+[
+  {
+    "input": "What is OpenAI?",
+    "actual_output": "OpenAI is an AI research and deployment company that aims to ensure that artificial general intelligence benefits all of humanity.",
+    "retrieval_context": ["OpenAI is an AI research and deployment company that aims to ensure that artificial general intelligence benefits all of humanity."]
+  },
+  {
+    "input": "Tell me about Amazon Web Services",
+    "actual_output": "Amazon Web Services (AWS) is a comprehensive and broadly adopted cloud platform.",
+    "retrieval_context": ["Amazon Web Services (AWS) is the world's most comprehensive and broadly adopted cloud platform."]
+  }
+]

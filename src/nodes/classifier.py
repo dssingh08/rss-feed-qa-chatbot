@@ -47,7 +47,8 @@ async def classify_query_node(state: AgentState) -> AgentState:
 
     logger.debug(f"classifying query: {last_message}, with blog_titles present: {bool(blog_titles)}, conversation_summary present: {bool(conversation_summary)}, selected_blog_title present: {bool(selected_blog_title)}")
 
-    model = get_internal_model()
+    model_choice = state.get("response_model", "gemini")
+    model = get_internal_model(model_choice)
 
     conversation_summary_context = ""
     if conversation_summary:

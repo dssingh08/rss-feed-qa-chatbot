@@ -27,7 +27,11 @@ class RSSParser:
         logger.info(f"Parsing RSS feed: {feed_url}")
 
         try:
-            feed = feedparser.parse(feed_url)
+            import httpx
+            with httpx.Client(headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}) as client:
+                response = client.get(feed_url, follow_redirects=True, timeout=15.0)
+                response.raise_for_status()
+                feed = feedparser.parse(response.text)
 
             if feed.bozo:
                 logger.warning(f"Feed parsing warning for {feed_url}: {str(feed.bozo_exception)}")
@@ -66,7 +70,11 @@ class RSSParser:
         logger.info(f"Searching feed {feed_url} for: {search_query}")
 
         try:
-            feed = feedparser.parse(feed_url)
+            import httpx
+            with httpx.Client(headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}) as client:
+                response = client.get(feed_url, follow_redirects=True, timeout=15.0)
+                response.raise_for_status()
+                feed = feedparser.parse(response.text)
             search_lower = search_query.lower()
 
             for entry in feed.entries:
